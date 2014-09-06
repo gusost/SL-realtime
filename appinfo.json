@@ -1,0 +1,29 @@
+{
+    "appKeys": {
+        "Destination": 5,
+        "ExpectedDateTime": 7,
+        "Index": 8,
+        "LineNumber": 4,
+        "StopAreaName": 3,
+        "TestField": 0,
+        "TimeTabledDateTime": 6,
+        "TransportMode": 2,
+        "fetch": 1
+    },
+    "capabilities": [
+        "location"
+    ],
+    "companyName": "gh0st",
+    "longName": "SL-realtime",
+    "projectType": "native",
+    "resources": {
+        "media": []
+    },
+    "shortName": "SL-realtime",
+    "uuid": "dabb28a4-1b72-4d27-878c-9ff52dbdb519",
+    "versionCode": 1,
+    "versionLabel": "1.0.0",
+    "watchapp": {
+        "watchface": false
+    }
+}
