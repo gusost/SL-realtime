@@ -22,7 +22,7 @@
     "shortName": "SL-realtime",
     "uuid": "dabb28a4-1b72-4d27-878c-9ff52dbdb519",
     "versionCode": 1,
-    "versionLabel": "1.0.0",
+    "versionLabel": "1.0",
     "watchapp": {
         "watchface": false
     }

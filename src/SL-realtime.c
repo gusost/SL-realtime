@@ -80,7 +80,7 @@ static void init_transport_layer(Transport *transport, int i) {
 
 	// GG. Destination
 	transport->destination = text_layer_create((GRect) { .origin = { 0, 10 }, .size = { bounds.size.w, CELL_HEIGHT * 2 / 3 } });
-	text_layer_set_text(transport->destination, "Pretty long text for destination");
+	text_layer_set_text(transport->destination, "Destination");
 	text_layer_set_text_alignment(transport->destination, GTextAlignmentLeft);
 	text_layer_set_font(transport->destination, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
 	text_layer_set_background_color(transport->destination, GColorClear);
@@ -202,7 +202,6 @@ static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
 		data->value = (abs(timeLeft) % 60) * 2;
 		layer_mark_dirty(transport->ticker->layer);
 		if(t % 25 == 0) select_click_handler(NULL, NULL); // GG. Fetch data... same routine.
-		
 	}
 }
 static void in_dropped_handler(AppMessageResult reason, void *context) {

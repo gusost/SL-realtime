@@ -20,148 +20,94 @@ CoinWidgetCom.go({
 </script>
 */
 
-var d = new Date();
-var offset = ( d.getTimezoneOffset() * 60 );
+//var d = new Date();
+var timeOffset = 0 - ( new Date().getTimezoneOffset() * 60 );
+var _ = _;
 var transports = ["Buses", "Metros", "Trains", "Trams"];
 var properties = ["SiteId", "StopAreaNumber", "TransportMode", "StopAreaName", "LineNumber", "Destination", "TimeTabledDateTime", "ExpectedDateTime", "DisplayTime"];
+var favoriteStationsIds = ["9430", "9309"];
+var currentSiteId = null;
+var currentPosition;
+var sites = {};
+var sitesArray;
+var stopPoints;
+var stopAreaNumberToSiteId = {};
+var locationWatcher;
+
+//var favoriteStations = JSON.parse(localStorage.get("favoriteStations"));
 
 Pebble.addEventListener("ready", function(event) {
 	console.log("JavaScript app ready and running! Event payload: " + JSON.stringify(event));
 	// GG. Function to get the nearest station.
 /* var SiteId = getSiteId(); */
+//	Pebble.showSimpleNotificationOnPebble('Hello!','Notifications from JavaScript? Welcome to the future!');
+	
+	var locationOptions = { "timeout": 15000, "maximumAge": 0, "enableHighAccuracy": true };
+	window.navigator.geolocation.getCurrentPosition(locationSuccess, locationError);
+
+	locationOptions = { "timeout": 10000, "maximumAge": 15000, "enableHighAccuracy": true };
+	if ( locationWatcher !== undefined )
+	{
+		window.navigator.geolocation.clearWatch(locationWatcher);
+	}
+	locationWatcher = window.navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
+/*  
 	var SiteId = "9430";
+	if (new Date().getHours() > 15)
+	{
+		SiteId = "9309";
+	}
 	getRealtimeTransports(SiteId);
+*/
+	sitesArray = JSON.parse( localStorage.getItem("sitesArray") );
+	stopAreaNumberToSiteId = JSON.parse( localStorage.getItem("stopAreaNumberToSiteId") );
+	if ( _.isArray(sitesArray ) )
+	{
+		console.log("\nLoaded data from local storage \nsitesArray: " + sitesArray.length );
+
+		if( _.isObject( stopAreaNumberToSiteId ) )
+		{
+			console.log("\nLoaded data from local storage \nstopAreaNumberToSiteId: " + _.keys(stopAreaNumberToSiteId).length );
+		}
+		else
+		{
+			getData("http://api.sl.se/api2/FileService?key=7ebd290f4b2948bdb341512c976475b2&filename=Sites.csv", getSites);
+		}
+
+	}
+	else
+	{
+		getData("http://api.sl.se/api2/FileService?key=7ebd290f4b2948bdb341512c976475b2&filename=Sites.csv", getSites);
+	}
+	
+	stopPoints = JSON.parse( localStorage.getItem("stopPoints") );
+	if ( _.isArray( stopPoints ) )
+	{
+		console.log("\nLoaded data from local storage\nstopPoints: " + stopPoints.length );
+	}	
+	else
+	{
+		getData("http://api.sl.se/api2/FileService?key=7ebd290f4b2948bdb341512c976475b2&filename=StopPoints.csv", getStopPoints);
+	}
 });
 
 Pebble.addEventListener("appmessage", function(e) {
 	console.log("appmessage: " + JSON.stringify(e));
 /*	var SiteId = getSiteId(); */
 //	locationWatcher = window.navigator.geolocation.watchPosition(getSiteId, null /* locationError */, null /* locationOptions */);
-	var SiteId = "9430";
-	getRealtimeTransports(SiteId);
+/*
+  var SiteId = "9430";
+	if (new Date().getHours() > 15)
+	{
+		SiteId = "9309";
+	}
+*/
+  if(currentSiteId)
+  	getRealtimeTransports(currentSiteId);
+  else
+    console.log("No current SiteId");
 /*	if (e.payload.symbol) { */
 });
-
-/*
-function getSiteId(pos) {
-	// var coordinates = pos.coords;
-	// pos.coords.latitude, pos.coords.longitude;
-	var urlPosition = 'https://api.trafiklab.se/samtrafiken/resrobot/StationsI5e398bd12f7f956&apiVersion=2.1&radius=200&coordSys=WGS84&centerX=' + pos.coords.longitude + '&centerY=' + pos.coords.latitude;
-	// https://api.trafiklab.se/samtrafiken/resrobot/StationsInZone.json?apiVersion=2.1&centerX=18.132522&centerY=59.307628&radius=200&coordSys=WGS84&key=d7d1b22681627cc3e5e398bd12f7f956
-	var urlStationId = 'https://api.trafiklab.se/sl/realtid/GetSite.json?stationSearch=' + stationName + '&key=df4229ba40a5c038e5fb11eb151a5455'
-}
-*/
-
-
-function printDistance(l) {
-	var h = {};
-	h.lon = 18.132483;
-	h.lat = 59.307596;
-	var dlon = 111412; // [m/deg]
-	var dlat = Math.cos(h.lat*Math.PI/180)*dlon; // [m/deg]
-	
-	for(var i=0;i<l.length;i++) {
-		console.log(l[i].name);
-		console.log(Math.sqrt(Math.pow((parseFloat(l[i]['@x']) - h.lon)*dlon,2) + Math.pow((parseFloat(l[i]['@y']) - h.lat)*dlat,2)));
-	}
-}
-
-
-function getRealtimeTransports(SiteId) {
-	var url = 'https://api.trafiklab.se/sl/realtid/GetDpsDepartures.json?key=df4229ba40a5c038e5fb11eb151a5455&timeWindow=30&siteId=' + SiteId;
-	var req = new XMLHttpRequest();
-	var rides = [];
-	req.onload = function(e) {
-		if (req.readyState === 4 && req.status === 200) {
-			console.log("200 OK");
-			var response = req.responseText;
-			var departures = JSON.parse(response).DPS;
-			var transporter;
-			var transportsLength = transports.length;
-			for(var index=0; index<transportsLength; index++)
-			{
-				transporter=transports[index];
-				if( Object.prototype.toString.call( departures[transporter] ) !== '[object Object]') continue;
-				var  keyName = Object.keys(departures[transporter])[0]; // GG. Always one or zero objects.
-				if ( keyName === undefined ) continue; // GG. No entries.
-				if ( Object.prototype.toString.call( departures[transporter][keyName] ) === '[object Array]')
-				{
-					for(var j=0; j < departures[transporter][keyName].length; j++)
-					{
-						rides.push(departures[transporter][keyName][j]);
-					}
-				}
-				else
-				{
-					rides.push(departures[transporter][keyName]);
-				}
-			}
-			var obj = {};
-			var property = "";
-			var ride;
-			var ridesArray = [];
-			for(var i = 0; i<rides.length; i++)
-			{
-				ride = rides[i];
-        obj = {};
-				for(var j = 0; j<properties.length; j++)
-				{
-					property = properties[j];
-					if (property === "TimeTabledDateTime" || property === "ExpectedDateTime") {
-						// GG. Works in Sweden. In theory from GB to China
-						obj[property] = parseInt(new Date(ride[property]).getTime() / 1000 ); // + offset);
-					}
-					else
-						obj[property] = ride[property];
-				}
-				ridesArray.push(obj);
-			}
-			// console.log(JSON.stringify(ridesArray));
-			// GG. Play...
-/*			Pebble.sendAppMessage({"0": ridesArray[0]["LineNumber"] + " " + ridesArray[0]["Destination"] + " " + ridesArray[0]["DisplayTime"]}); */
-			var filtered = ridesArray.filter(function(element) { return element.Destination === "Slussen"; });
-//			console.log(filtered);
-			ridesArray = filtered;
-			ridesArray.sort(expectedTimeSort);
-			var ridesArrayLength = ridesArray.length;
-			var objArray = [];
-//			console.log(ridesArrayLength);
-			for(var i = 0; i < ridesArrayLength && i < 4; i++)
-			{
-				objArray.push({	"TransportMode" : ridesArray[i].TransportMode,
-                        "LineNumber"		: ridesArray[i].LineNumber,
-                        "Destination"		: ridesArray[i].Destination,
-                        "TimeTabledDateTime": ridesArray[i].TimeTabledDateTime,
-                        "ExpectedDateTime"	: ridesArray[i].ExpectedDateTime,
-                        "Index"				: i	});
-
-				setTimeout(function() {
-//					console.log(JSON.stringify(objArray[0]));
-					Pebble.sendAppMessage(objArray.shift());
-        }, i*250, objArray);
-					
-			}
-
-/*
-      "fetch":			1,
-      "TransportMode": 2,
-			"StopAreaName": 3,
-			"LineNumber": 4,
-			"Destination":		5,
-			"TimeTabledDateTime": 6,
-			"ExpectedDateTime": 7,
-			"Index":			8
-*/
-
-		}
-		else
-		{
-			console.log("Not OK: " + req.status + " Ready state: " + req.readyState + "Result: " + req.responseText);
-		}
-	};
-	req.open("GET", url);
-	req.send();
-}
 
 function expectedTimeSort(a,b) {
 	if (a.ExpectedDateTime < b.ExpectedDateTime)
@@ -169,4 +115,4 @@ function expectedTimeSort(a,b) {
 	if (a.ExpectedDateTime > b.ExpectedDateTime)
 		return 1;
 	return 0;
-	}
+}
