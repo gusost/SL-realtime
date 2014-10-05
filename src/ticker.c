@@ -4,7 +4,7 @@
 
 #define CELL_HEIGHT 38
 //typedef void (*TickerCallback)(char *name);
-static bool halfSecond = false;
+//static bool halfSecond = false;
 
 Ticker* ticker_layer_create(){
 	// GG. Using malloc, remember to free() it laterzz. why not uniq?
@@ -15,8 +15,8 @@ Ticker* ticker_layer_create(){
 */
 	APP_LOG(APP_LOG_LEVEL_DEBUG, "Init ticker layer: %p", ticker);
 	ticker->layer			 = layer_create_with_data((GRect) { .origin = { 1, 1 }, .size = { 120, 2 } }, sizeof(ProgressData));
-	ticker->backgroundLayer  = layer_create((GRect) { .origin = { 11, CELL_HEIGHT - 5 }, .size = { 122, 4 } });
-	ticker->progress		 = (ProgressData) { .value = 15 };
+	ticker->backgroundLayer  = layer_create((GRect) { .origin = { 12, CELL_HEIGHT - 5 }, .size = { 120, 4 } });
+	ticker->progress		 = (ProgressData) { .value = 0 };
 	layer_set_update_proc(ticker->layer, tickerDraw);
 	layer_set_update_proc(ticker->backgroundLayer, tickerBackgroundDraw);
 // 	GG. Attach the acctual ticker layer as child. Return background layer.
@@ -57,7 +57,7 @@ void tickerDraw(Layer *layer, GContext *ctx) {
 void tickerBackgroundDraw(Layer *layer, GContext *ctx) {
 	//	graphics_context_set_stroke_color(ctx, GColorWhite);
 	graphics_context_set_stroke_color(ctx, GColorBlack);
-	graphics_draw_rect( ctx, GRect(0,0,122,4));	
+	graphics_draw_rect( ctx, GRect(0,0,120,4));	
 }
 
 /*

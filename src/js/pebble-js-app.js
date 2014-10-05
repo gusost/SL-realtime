@@ -41,7 +41,7 @@ var locationWatcher;
 //var favoriteStations = JSON.parse(localStorage.get("favoriteStations"));
 
 Pebble.addEventListener("ready", function(event) {
-	console.log("JavaScript app ready and running! Event payload: " + JSON.stringify(event));
+	//console.log("JavaScript app ready and running! Event payload: " + JSON.stringify(event));
 //	Pebble.showSimpleNotificationOnPebble('Hello!','Notifications from JavaScript? Welcome to the future!');
 
 	// GG. Start by getting a position fix.

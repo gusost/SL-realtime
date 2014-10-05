@@ -1,5 +1,6 @@
 #include <pebble.h>
 #include "ticker.h"
+#include "transport.h"
 
 // GG. 
 #define NUMBER_OF_RIDES 4
@@ -9,22 +10,6 @@ static Window *window;
 //static TextLayer *text_layer;
 //static TextLayer *ride_layer;
 //static char ride[50];
-
-// GG. Make a struct that has text layers, time keeping and inversion layer.
-typedef struct Transport {
-	Layer			*container;
-	InverterLayer	*inverter_layer;
-	Ticker			*ticker;
-	TextLayer 		*transport_mode_and_line_number;
-	char 			 transport_mode_and_line_number_text[20];
-	TextLayer 		*destination;
-	char 			 destination_text[26];
-	TextLayer 		*time_left;
-	char 			 time_left_text[7];	// GG. In case it's copied to the text layers, only need one string.
-	uint32_t 		tabledTime;
-	uint32_t 		expectedTime;
-	int 			index;		// GG. Index.
-} Transport;
 
 enum {
 	REALTIME_KEY_TEST			= 0x0,
@@ -55,56 +40,6 @@ static Transport tpLayers[NUMBER_OF_RIDES];
 	layer_add_child(window_layer, text_layer_get_layer(text_layer));
 */
 //}
-
-static void init_transport_layer(Transport *transport, int i) {
-	APP_LOG(APP_LOG_LEVEL_DEBUG, "Init transport layer: %d", i);
-	Layer *window_layer = window_get_root_layer(window);
-	GRect bounds = layer_get_bounds(window_layer);
-	transport->container = layer_create((GRect) { .origin = { 0, i * (CELL_HEIGHT) }, .size = { bounds.size.w, CELL_HEIGHT } });
-
-	// GG. Transport mode and line number
-	transport->transport_mode_and_line_number = text_layer_create((GRect) { .origin = { 0, 0 - 5 }, .size = { (int) bounds.size.w * 2 / 3, CELL_HEIGHT / 2 - 1 } });
-	text_layer_set_text(transport->transport_mode_and_line_number, "Transport mode and line number");
-	text_layer_set_text_alignment(transport->transport_mode_and_line_number, GTextAlignmentLeft);
-	text_layer_set_font(transport->transport_mode_and_line_number, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-	text_layer_set_background_color(transport->transport_mode_and_line_number, GColorClear);
-	layer_add_child(transport->container, text_layer_get_layer(transport->transport_mode_and_line_number));
-
-	// GG. Time left
-	transport->time_left = text_layer_create((GRect) { .origin = { bounds.size.w * 2 / 3, 0 - 5 }, .size = { bounds.size.w / 3, CELL_HEIGHT / 2 - 1 } });
-	text_layer_set_text(transport->time_left, "XX min");
-	text_layer_set_text_alignment(transport->time_left, GTextAlignmentRight);
-	text_layer_set_font(transport->time_left, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-	text_layer_set_background_color(transport->time_left, GColorClear);
-	layer_add_child(transport->container, text_layer_get_layer(transport->time_left));
-
-	// GG. Destination
-	transport->destination = text_layer_create((GRect) { .origin = { 0, 10 }, .size = { bounds.size.w, CELL_HEIGHT * 2 / 3 } });
-	text_layer_set_text(transport->destination, "Destination");
-	text_layer_set_text_alignment(transport->destination, GTextAlignmentLeft);
-	text_layer_set_font(transport->destination, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-	text_layer_set_background_color(transport->destination, GColorClear);
-	layer_add_child(transport->container, text_layer_get_layer(transport->destination));
-	
-	// GG. Ticker
-	transport->ticker = ticker_layer_create(); // ticker_layer_create(expectedTime);
-	layer_add_child(transport->container, transport->ticker->backgroundLayer);
-	
-	if (i%2) {
-		transport->inverter_layer = inverter_layer_create((GRect) {.origin = { 0, 0 }, .size = { bounds.size.w, CELL_HEIGHT }});
-		layer_add_child(transport->container, inverter_layer_get_layer(transport->inverter_layer));
-	}
-	layer_add_child(window_layer, transport->container);
-}
-
-static void destroy_transport_layer(Transport *transport, int i) {
-	APP_LOG(APP_LOG_LEVEL_DEBUG, "Destroy layer: %i", i);
-	text_layer_destroy(		transport->transport_mode_and_line_number);
-	text_layer_destroy(		transport->destination);
-	text_layer_destroy(		transport->time_left);
-	if (i%2) inverter_layer_destroy(transport->inverter_layer);
-	layer_destroy(transport->container);
-}
 
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
 //	text_layer_set_text(text_layer, "Getting data...");
@@ -181,6 +116,7 @@ static void in_received_handler(DictionaryIterator *iter, void *context) {
 		transport->ticker->progress.value = transport->expectedTime;
 	}
 }
+
 static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
 	time_t t = time(NULL);
 	for(int i = 0; i < NUMBER_OF_RIDES; i++)
@@ -201,7 +137,7 @@ static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
 		ProgressData *data = layer_get_data(transport->ticker->layer);
 		data->value = (abs(timeLeft) % 60) * 2;
 		layer_mark_dirty(transport->ticker->layer);
-		if(t % 25 == 0) select_click_handler(NULL, NULL); // GG. Fetch data... same routine.
+		if(t % 30 == 0) select_click_handler(NULL, NULL); // GG. Fetch data... same routine.
 	}
 }
 static void in_dropped_handler(AppMessageResult reason, void *context) {
@@ -214,7 +150,7 @@ static void in_dropped_handler(AppMessageResult reason, void *context) {
 		break;
 	default :
 		APP_LOG(APP_LOG_LEVEL_DEBUG, "App Message Dropped: : %d", reason);	
-}
+	}
 
 }
 
@@ -228,15 +164,17 @@ static void app_message_init(void) {
 	app_message_register_inbox_dropped(in_dropped_handler);
 	app_message_register_outbox_failed(out_failed_handler);
 	// Init buffers
-	app_message_open(APP_MESSAGE_INBOX_SIZE_MINIMUM, 64);
+	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 //	fetch_msg();
 }
 
 static void window_load(Window *window) {
+	Layer *window_layer = window_get_root_layer(window);
 	for(int i = 0; i < NUMBER_OF_RIDES; i++)
 	{
 		Transport *transport = &tpLayers[i];
 		init_transport_layer(transport, i);
+		layer_add_child(window_layer, transport->container);
 	}
 }
 
