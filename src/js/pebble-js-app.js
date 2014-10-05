@@ -24,8 +24,12 @@ CoinWidgetCom.go({
 var timeOffset = 0 - ( new Date().getTimezoneOffset() * 60 );
 var _ = _;
 var transports = ["Buses", "Metros", "Trains", "Trams"];
-var properties = ["SiteId", "StopAreaNumber", "TransportMode", "StopAreaName", "LineNumber", "Destination", "TimeTabledDateTime", "ExpectedDateTime", "DisplayTime"];
+var properties = ["SiteId", "StopAreaNumber", "TransportMode", "StopAreaName", "LineNumber", "JourneyDirection", "Destination", "TimeTabledDateTime", "ExpectedDateTime", "DisplayTime"];
 var favoriteStationsIds = ["9430", "9309"];
+var favoriteStationsFilter = {
+								"9430" : { "JourneyDirection": 2 },
+								"9309" : {}
+							 };
 var currentSiteId = null;
 var currentPosition;
 var sites = {};
@@ -38,27 +42,11 @@ var locationWatcher;
 
 Pebble.addEventListener("ready", function(event) {
 	console.log("JavaScript app ready and running! Event payload: " + JSON.stringify(event));
-	// GG. Function to get the nearest station.
-/* var SiteId = getSiteId(); */
 //	Pebble.showSimpleNotificationOnPebble('Hello!','Notifications from JavaScript? Welcome to the future!');
-	
-	var locationOptions = { "timeout": 15000, "maximumAge": 0, "enableHighAccuracy": true };
-	window.navigator.geolocation.getCurrentPosition(locationSuccess, locationError);
 
-	locationOptions = { "timeout": 10000, "maximumAge": 15000, "enableHighAccuracy": true };
-	if ( locationWatcher !== undefined )
-	{
-		window.navigator.geolocation.clearWatch(locationWatcher);
-	}
-	locationWatcher = window.navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
-/*  
-	var SiteId = "9430";
-	if (new Date().getHours() > 15)
-	{
-		SiteId = "9309";
-	}
-	getRealtimeTransports(SiteId);
-*/
+	// GG. Start by getting a position fix.
+	window.navigator.geolocation.getCurrentPosition();
+
 	sitesArray = JSON.parse( localStorage.getItem("sitesArray") );
 	stopAreaNumberToSiteId = JSON.parse( localStorage.getItem("stopAreaNumberToSiteId") );
 	if ( _.isArray(sitesArray ) )
@@ -89,23 +77,28 @@ Pebble.addEventListener("ready", function(event) {
 	{
 		getData("http://api.sl.se/api2/FileService?key=7ebd290f4b2948bdb341512c976475b2&filename=StopPoints.csv", getStopPoints);
 	}
+
+	var locationOptions = { "timeout": 10000, "maximumAge": 15000, "enableHighAccuracy": true };
+	if ( locationWatcher !== undefined )
+	{
+		window.navigator.geolocation.clearWatch(locationWatcher);
+	}
+	locationWatcher = window.navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
+
 });
 
 Pebble.addEventListener("appmessage", function(e) {
-	console.log("appmessage: " + JSON.stringify(e));
+// console.log("appmessage: " + JSON.stringify(e));
 /*	var SiteId = getSiteId(); */
 //	locationWatcher = window.navigator.geolocation.watchPosition(getSiteId, null /* locationError */, null /* locationOptions */);
-/*
-  var SiteId = "9430";
-	if (new Date().getHours() > 15)
-	{
-		SiteId = "9309";
-	}
+/* 
+	{"type":"appmessage","target":{},"currentTarget":{},"payload":{"fetch":1}}
 */
-  if(currentSiteId)
+
+  if(currentSiteId && e.payload.fetch)
   	getRealtimeTransports(currentSiteId);
   else
-    console.log("No current SiteId");
+	  console.log("No current SiteId or weird message: " + JSON.stringify(e) );
 /*	if (e.payload.symbol) { */
 });
 

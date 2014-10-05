@@ -8,7 +8,7 @@ function locationSuccess(pos) {
 function locationError(err) {
   console.warn('Location error (' + err.code + '): ' + err.msg );
 	Pebble.showSimpleNotificationOnPebble('Location error (' + err.code + ')', err.msg);
-	Pebble.sendAppMessage({	
+	MessageQueue.sendAppMessage({	
 		"TransportMode" 	: "TRAM",
 		"LineNumber"		: 666,
 		"Destination"		: err.msg,
@@ -20,14 +20,15 @@ function locationError(err) {
 
 var R = 6371000; // [m]
 var meterPerDegreeLat  = 111194.92; //R * Math.PI / 180; // [m/degree]
-var meterPerDegreeLong = R * Math.cos(lat) * Math.PI / 180; // GG. cos around 60 is like 0.5 maybe should do that.
+var meterPerDegreeLong = R * Math.cos(59.3517693989595) * Math.PI / 180; // GG. cos around 60 is like 0.5 maybe should do that.
 	
 function getStationsNearby(pos) {
 	if ( ! _.isArray(sitesArray ) || ! _.isArray(stopPoints) )
 	{
 		console.log("Not all variables are initiated.");
+		return;
 	}
-  	console.log("Position: " + JSON.stringify(pos,null,'\t'));
+//  	console.log("Position: " + JSON.stringify(pos,null,'\t'));
 	var lat = pos.coords.latitude;
 	var long = pos.coords.longitude;
 //  var coordinates = pos.coords;
@@ -50,7 +51,7 @@ function getStationsNearby(pos) {
     var currentIndex;
     var currentElement;
  	
-	console.log("latLowerLimit: " + latLowerLimit);
+//	console.log("latLowerLimit: " + latLowerLimit);
 	// GG. Can't decide if this will miss by one in some cases... decrement current index by one when done just in case.
     while (minIndex <= maxIndex) {
   
@@ -66,7 +67,7 @@ function getStationsNearby(pos) {
         }
     }
 	currentIndex--;
-	console.log("Decramenting index one. Current index: " + currentIndex + " Current lat: N " + parseFloat( stopPoints[currentIndex].LocationNorthingCoordinate ) ); // GG. Debug
+//	console.log("Decramenting index one. Current index: " + currentIndex + " Current lat: N " + parseFloat( stopPoints[currentIndex].LocationNorthingCoordinate ) ); // GG. Debug
 	
 	var meterPerDegreeLong = R * Math.cos(lat * Math.PI / 180) * Math.PI / 180; // GG. cos around 60 is like 0.5 maybe should do that.	
 	var degreesSearchRadiusLong = searchRadius / meterPerDegreeLong; // [degree]
@@ -77,7 +78,7 @@ function getStationsNearby(pos) {
 	var latUpperLimit = lat + degreesSearchRadiusLat;
 	var longUpperLimit = long + degreesSearchRadiusLong;
 	var longLowerLimit = long - degreesSearchRadiusLong;
-	console.log("longLowerLimit: " + longLowerLimit + ". longUpperLimit: " + longUpperLimit);
+//	console.log("longLowerLimit: " + longLowerLimit + ". longUpperLimit: " + longUpperLimit);
 	
 	var currentLongIndex = 0;
 	for(var i=currentIndex, len = stopPoints.length; i < len; i++)
@@ -86,56 +87,39 @@ function getStationsNearby(pos) {
 		if( parseFloat( stopPoints[i].LocationEastingCoordinate ) < longUpperLimit &&
 		  	parseFloat( stopPoints[i].LocationEastingCoordinate ) > longLowerLimit )
 		{
-			hits.push(i);
-			if (favoriteStationsIds.indexOf( stopAreaNumberToSiteId[ parseInt( stopPoints[i].StopAreaNumber) ] ) !== -1 )
+			var sitesArrayIndex = stopAreaNumberToSiteId[ stopPoints[i].StopAreaNumber ];
+			hits.push(sitesArrayIndex);
+			if ( sitesArray === undefined )
 			{
-				currentSiteId = stopAreaNumberToSiteId[ parseInt( stopPoints[i].StopAreaNumber) ];
+//				console.log("sitesArray is undefined");
+				return;
+			}
+			if (favoriteStationsIds.indexOf( sitesArray[sitesArrayIndex].SiteId ) !== -1 )
+			{
+				currentSiteId = sitesArray[sitesArrayIndex].SiteId;
 				getRealtimeTransports(currentSiteId);
+				break;
 			}
 		}
 			
-		if( latUpperLimit < parseFloat( stopPoints[i].LocationNorthingCoordinate ) )
+		if( latUpperLimit < +stopPoints[i].LocationNorthingCoordinate )
 		{
 			currentLongIndex = i;
 			break;
 		}
 	}	
-	console.log("Current long index: " + currentLongIndex + " Current lat: N " + parseFloat( stopPoints[currentLongIndex].LocationNorthingCoordinate ) ); // GG. Debug
-	console.log("Search length: " + searchLength + ". Hits: " + hits.length);
-	
-	
+//	console.log("Current long index: " + currentLongIndex + " Current lat: N " + parseFloat( stopPoints[currentLongIndex].LocationNorthingCoordinate ) ); // GG. Debug
+//	console.log("Search length: " + searchLength + ". Hits: " + hits.length);	
 //	var url = 'https://api.trafiklab.se/samtrafiken/resrobot/StationsInZone.json?apiVersion=2.1&centerX=' + pos.coords.longitude + '&centerY=' + pos.coords.latitude + '&radius=' + searchRadius + '&coordSys=WGS84&key=d7d1b22681627cc3e5e398bd12f7f956';
 //	getData(url, findStation);
 }
 
 function getDistance(stopPoint, pos) {
-/*	
-	var R = 6371000;
-	var x = (λ2-λ1) * Math.cos((φ1+φ2)/2);
-*/
+	
 	var dlat = pos.coords.latitude - parseFloat( stopPoint.LocationNorthingCoordinate );
 	var dlong = pos.coords.long - parseFloat( stopPoint.LocationEastingCoordinate );
-	
+
 	return meterPerDegreeLat * dlat * dlat + meterPerDegreeLong * dlong * dlong;
-/*
-	var R = 6371000; // [m]
-	var meterPerDegreeLat  = 111194.92; //R * Math.PI / 180; // [m/degree]
-	var meterPerDegreeLong = R * Math.cos(lat) * Math.PI / 180;
-
-	var d = Math.sqrt(x*x + y*y) * R;
-
-	var h = {};
-	h.lon = 18.132483;
-	h.lat = 59.307596;
-	var dlon = 111412; // [m/deg]
-	var dlat = Math.cos(h.lat*Math.PI/180)*dlon; // [m/deg]
-
-	for(var i=0;i<l.length;i++) {
-		console.log(l[i].name);
-		console.log(Math.sqrt(Math.pow((parseFloat(l[i]['@x']) - h.lon)*dlon,2) + Math.pow((parseFloat(l[i]['@y']) - h.lat)*dlat,2)));
-	}
-	
-*/
 }
 
 function findStation(response) {
@@ -174,10 +158,10 @@ function getSiteIdFromSiteName(data, stationName){
 */
   var parsedData = JSON.parse(data);
 	if( _.isArray( parsedData.Hafas.Sites.Site ) ){
-		console.log("Multiple sites have the same name");
+//		console.log("Multiple sites have the same name");
 		_.each(parsedData.Hafas.Sites.Site, function(site){
 			if ( favoriteStationsIds.indexOf(site.Number) !== -1 ) {
-				console.log("Got favorite: " + JSON.stringify(site, null, '\t') );
+//				console.log("Got favorite: " + JSON.stringify(site, null, '\t') );
 				getRealtimeTransports(site.Number);
 				currentSiteId = site.Number;
 			}			

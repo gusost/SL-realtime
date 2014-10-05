@@ -49,19 +49,19 @@ function getSites(data)
 
 				// GG. Compare all properties.
 				_.each(_.keys(site),function(keyName) {
-					if( sites[parseInt(site.SiteId)][keyName] !== site[keyName] )
+					if( sites[site.SiteId][keyName] !== site[keyName] )
 					{
 						// GG. if this property is allready an array. Push to it. Otherwise make an array of it.
-						if ( _.isArray( sites[parseInt(site.SiteId)][keyName] ) )
+						if ( _.isArray( sites[site.SiteId][keyName] ) )
 						{
-							if( sites[parseInt(site.SiteId)][keyName].indexOf() === -1 )
+							if( sites[site.SiteId][keyName].indexOf() === -1 )
 							{
-								sites[parseInt(site.SiteId)][keyName].push(site[keyName]);
+								sites[site.SiteId][keyName].push(site[keyName]);
 							}
 						}
 						else
 						{
-							sites[parseInt(site.SiteId)][keyName] = [ sites[parseInt(site.SiteId)][keyName], site[keyName] ];
+							sites[site.SiteId][keyName] = [ sites[site.SiteId][keyName], site[keyName] ];
 						}
 					}
 				});
@@ -142,19 +142,16 @@ function getStopPoints(data)
 	localStorage.setItem( "stopPoints", JSON.stringify(stopPoints) );
 }
 
-function getRealtimeTransports(SiteId) {
+function getRealtimeTransports(siteId) {
 //	var url = 'https://api.trafiklab.se/sl/realtid/GetDpsDepartures.json?key=df4229ba40a5c038e5fb11eb151a5455&timeWindow=30&siteId=' + SiteId;
-  console.log("Getting realtime info for: " + SiteId);
-  var url = 'https://api.sl.se/api2/realtimedepartures.json?key=f89b47f34d48432eaeac26dc34ba4dee&timewindow=30&siteid=' + SiteId;
-  getData(url, getRealtimeTransportsCallback);
+//  console.log("Getting realtime info for: " + siteId);
+  var url = 'https://api.sl.se/api2/realtimedepartures.json?key=f89b47f34d48432eaeac26dc34ba4dee&timewindow=30&siteid=' + siteId;
+  getData(url, getRealtimeTransportsCallback, siteId);
 }
 
-function getRealtimeTransportsCallback(data){
+function getRealtimeTransportsCallback(data, siteId){
 //  console.log("\ngetRealtimeTransportsCallback data:\n" + JSON.stringify(JSON.parse(data), null, '\t'));
     var rides = [];
-
-//    console.log(JSON.stringify(JSON.parse(req.response), null, '\t'));
-
     var departureCategories = _.pick(JSON.parse(data).ResponseData, transports);
     _.each(departureCategories, function(departures) {
 		if(_.isArray(departures))
@@ -163,64 +160,57 @@ function getRealtimeTransportsCallback(data){
 			rides.push(departures);
 	});
 
-	//		console.log(JSON.stringify(rides, null, '\t'));
-
 	var ridesArray = [];
 
 	// GG. Pick the right attributes and make good dates.
 	_.each(rides, function(ride){
 		if(ride.TransportMode !== "METRO")
 		{
-			ride.TimeTabledDateTime = parseInt(new Date(ride.TimeTabledDateTime).getTime() / 1000 );
-			ride.ExpectedDateTime   = parseInt(new Date(ride.ExpectedDateTime).getTime() / 1000 );
+			ride.TimeTabledDateTime = +(new Date(ride.TimeTabledDateTime).getTime() / 1000 );
+			ride.ExpectedDateTime   = +(new Date(ride.ExpectedDateTime).getTime() / 1000 );
 		}
 		else
 		{
-			ride.TimeTabledDateTime = parseInt(new Date().getTime() / 1000 + parseInt(ride.DisplayTime) * 60 + timeOffset);
+			ride.TimeTabledDateTime = +(new Date().getTime() / 1000 + (ride.DisplayTime) * 60 + timeOffset);
 			ride.ExpectedDateTime   = ride.TimeTabledDateTime;
 		}
 		ridesArray.push(_.pick(ride, properties));
 	});
-/*
-	if (new Date().getHours() < 15)
+
+	if ( _.keys(favoriteStationsFilter).indexOf(siteId) !== -1 )
 	{
-		var filtered = ridesArray.filter(function(element) { return element.Destination === "Slussen"; });
+		var filters = favoriteStationsFilter[siteId];
+		var filtered = _.where(ridesArray, filters);
 		ridesArray = filtered;
 	}
-*/
 	
 	// GG. Make a message que and send messages there instead.
 	ridesArray.sort(expectedTimeSort);
 	var ridesArrayLength = ridesArray.length;
-	var objArray = [];
+//	var objArray = [];
 	for(var k = 0; k < ridesArrayLength && k < 4; k++)
 	{
-		objArray.push({	"TransportMode" : ridesArray[k].TransportMode,
-					   "LineNumber"		: ridesArray[k].LineNumber,
-					   "Destination"		: ridesArray[k].Destination,
-					   "TimeTabledDateTime": ridesArray[k].TimeTabledDateTime,
-					   "ExpectedDateTime"	: ridesArray[k].ExpectedDateTime,
-					   "Index"				: k	});
-
-		setTimeout(function() {
-			Pebble.sendAppMessage(objArray.shift());
-		}, k*250, objArray);
+		MessageQueue.sendAppMessage({	
+							"TransportMode" : ridesArray[k].TransportMode,
+							"LineNumber"	: ridesArray[k].LineNumber,
+					   		"Destination"	: ridesArray[k].Destination,
+						"TimeTabledDateTime": ridesArray[k].TimeTabledDateTime,
+						"ExpectedDateTime"	: ridesArray[k].ExpectedDateTime,
+									"Index"	: k	});
 	}
 
-	if (ridesArrayLength < 3 )
+	if (ridesArrayLength < 4 )
 	{
 		for(var l = ridesArrayLength; l < 4; l++)
 		{
-			objArray.push({	"TransportMode" : "",
-						   "LineNumber"		: "",
-						   "Destination"		: "",
-						   "TimeTabledDateTime"	: new Date().getTime() / 1000 + timeOffset,
-						   "ExpectedDateTime"	: new Date().getTime() / 1000 + timeOffset,
-						   "Index"				: l	});
+			MessageQueue.sendAppMessage({
+							"TransportMode"		: "",
+							"LineNumber"		: "",
+							"Destination"		: "",
+							"TimeTabledDateTime": new Date().getTime() / 1000 + timeOffset + 25,
+							"ExpectedDateTime"	: new Date().getTime() / 1000 + timeOffset + 25,
+							"Index"				: l	});
 
-			setTimeout(function() {
-				Pebble.sendAppMessage(objArray.shift());
-			}, l*250 + 750, objArray);
 		}
 	}
 }
@@ -229,5 +219,11 @@ function getRealtimeTransportsCallback(data){
 // GG. Generic result showing function
 
 function result(data){
-  console.log("Result:\n" + JSON.stringify(JSON.parse(data),null,'\t'));
+	if( _.isString(data) )
+	{
+		console.log("Data is a string. Parsing...");
+		data = JSON.parse(data);
+	}
+	
+	console.log("Result:\n" + JSON.stringify(data,null,'\t'));
 }
