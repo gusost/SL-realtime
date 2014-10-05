@@ -3,7 +3,9 @@
 #include "ticker.h"
 
 #define CELL_HEIGHT 38
+
 //typedef void (*TickerCallback)(char *name);
+
 //static bool halfSecond = false;
 
 Ticker* ticker_layer_create(){
@@ -24,33 +26,10 @@ Ticker* ticker_layer_create(){
 	layer_add_child(ticker->backgroundLayer, ticker->layer);
 	return ticker;
 }
-/*
-typedef struct Ticker {
-	Layer *layer;				// The ticker for the clock
-	Layer *backgroundLayer;	// The ticker for the clock
-	ProgressData progress;
-} Ticker;
 
-typedef struct {
-	int value; 
-} ProgressData;
-*/
 void tickerDraw(Layer *layer, GContext *ctx) {
-
 	graphics_context_set_stroke_color(ctx, GColorBlack);
 	ProgressData *data = layer_get_data(layer);
-
-//	time_t t = time(NULL);
-//	int timeLeft = data->value - t;
-//	(ticker->value - t);
-
-// GG. Time left could be negative. Needs to start incrementing instead to indicate the transport is behind expectation.
-//	if (timeLeft <= 0)  timeLeft = halfSecond ? 0 - (timeLeft * 2) - 1	: 0 - (timeLeft * 2);
-//	else				timeLeft = halfSecond ? 1 + (timeLeft * 2)		: 0 + (timeLeft * 2);
-//	timeLeft %= 120;
-//	APP_LOG(APP_LOG_LEVEL_DEBUG, "Time left: %i", timeLeft);
-//	graphics_draw_line( ctx , GPoint(0, 0), GPoint(timeLeft, 0) );
-
 	graphics_draw_rect( ctx, GRect(0, 0, data->value, 2));
 }
 
@@ -67,4 +46,7 @@ void handle_timer(AppContextRef ctx, AppTimerHandle handle, uint32_t cookie) {
 }
 */
 
-void ticker_deinit(void);
+void ticker_deinit(Ticker* ticker) {
+	layer_destroy(ticker->layer);
+	layer_destroy(ticker->backgroundLayer);
+}

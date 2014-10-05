@@ -18,6 +18,6 @@ void tickerBackgroundDraw(Layer *layer, GContext *ctx);
 
 Ticker* ticker_layer_create();
 
-void ticker_deinit(void);
+void ticker_deinit(Ticker* ticker);
 
 // void ticker_get_name(char *name, TickerCallback cb);

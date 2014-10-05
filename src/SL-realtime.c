@@ -26,21 +26,6 @@ enum {
 
 static Transport tpLayers[NUMBER_OF_RIDES];
 
-//static void updateTpLayer(Transport *transport) {
-/*
-	animal_data->count++;
-	time_t now = time(NULL);
-	data_logging_log(animal_data->logging_session, (uint8_t *)&now, 1);
-	snprintf(animal_data->text, 20, "%d", animal_data->count);
-	text_layer_set_text(animal_data->text_layer, animal_data->text);
-
-	text_layer = text_layer_create((GRect) { .origin = { 0, 12 }, .size = { bounds.size.w, 20 } });
-	text_layer_set_text(text_layer, "Press a button");
-	text_layer_set_text_alignment(text_layer, GTextAlignmentCenter);
-	layer_add_child(window_layer, text_layer_get_layer(text_layer));
-*/
-//}
-
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
 //	text_layer_set_text(text_layer, "Getting data...");
 	// GG. Get new data.
@@ -52,6 +37,7 @@ static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
 	dict_write_end(iter);
 	app_message_outbox_send();
 }
+
 /*
 static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
 //	text_layer_set_text(text_layer, "Up");
@@ -69,14 +55,8 @@ static void click_config_provider(void *context) {
 }
 
 static void in_received_handler(DictionaryIterator *iter, void *context) {
-//	Tuple *ride_tuple = dict_find(iter, REALTIME_KEY_TEST);
 	Tuple *transport_mode_tuple = dict_find(iter, REALTIME_KEY_TRANSPORT_MODE);
-/*
-	if (ride_tuple) {
-		strncpy(ride, ride_tuple->value->cstring, 50);
-		text_layer_set_text(ride_layer, ride);
-	}
-*/
+
 	if(transport_mode_tuple) {
 		/* Tuple *stop_name_tuple = dict_find(iter, REALTIME_KEY_STOP_NAME); */
 		Tuple *line_number_tuple	= dict_find(iter, REALTIME_KEY_LINE_NUMBER);
